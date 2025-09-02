@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Tool Recommendation System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            padding: 30px;
+            text-align: center;
+            color: white;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        
+        .search-section {
+            padding: 40px;
+        }
+        
+        .search-box {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .search-input {
+            flex: 1;
+            padding: 15px 20px;
+            font-size: 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        
+        .search-input:focus {
+            border-color: #4facfe;
+        }
+        
+        .search-btn {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+        
+        .search-btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .search-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 30px;
+            display: none;
+        }
+        
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4facfe;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .results {
+            display: none;
+        }
+        
+        .results-header {
+            background: #f8f9fa;
+            padding: 20px 40px;
+            border-top: 1px solid #e0e0e0;
+        }
+        
+        .results-header h2 {
+            color: #333;
+            margin-bottom: 5px;
+        }
+        
+        .results-count {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .tool-list {
+            padding: 0 40px 40px;
+        }
+        
+        .tool-item {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            border-left: 5px solid #4facfe;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .tool-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .tool-name {
+            font-size: 1.4em;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .tool-link {
+            color: #4facfe;
+            text-decoration: none;
+            font-weight: 500;
+            word-break: break-all;
+        }
+        
+        .tool-link:hover {
+            text-decoration: underline;
+        }
+        
+        .tool-description {
+            color: #666;
+            margin-top: 10px;
+            line-height: 1.6;
+        }
+        
+        .error {
+            background: #fff5f5;
+            color: #e53e3e;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 40px;
+            border-left: 5px solid #e53e3e;
+            display: none;
+        }
+        
+        .examples {
+            background: #f8f9fa;
+            padding: 20px;
+            margin-top: 20px;
+            border-radius: 10px;
+        }
+        
+        .examples h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+        
+        .example-queries {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .example-query {
+            background: white;
+            color: #4facfe;
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+        
+        .example-query:hover {
+            background: #4facfe;
+            color: white;
+            transform: translateY(-1px);
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                border-radius: 15px;
+            }
+            
+            .header {
+                padding: 20px;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .search-section {
+                padding: 20px;
+            }
+            
+            .search-box {
+                flex-direction: column;
+            }
+            
+            .tool-list, .results-header {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 AI Tool Finder</h1>
+            <p>Discover the best AI tools for any task using advanced AI recommendations</p>
+        </div>
+        
+        <div class="search-section">
+            <div class="search-box">
+                <input type="text" class="search-input" id="queryInput" 
+                       placeholder="What do you want to do? (e.g., convert CSV to PDF)" 
+                       maxlength="200">
+                <button class="search-btn" id="searchBtn">🔍 Find Tools</button>
+            </div>
+            
+            <div class="examples">
+                <h3>💡 Example Queries:</h3>
+                <div class="example-queries">
+                    <span class="example-query" onclick="searchExample('convert CSV to PDF')">Convert CSV to PDF</span>
+                    <span class="example-query" onclick="searchExample('generate AI images')">Generate AI Images</span>
+                    <span class="example-query" onclick="searchExample('write code with AI')">Code Assistant</span>
+                    <span class="example-query" onclick="searchExample('edit videos with AI')">Video Editing</span>
+                    <span class="example-query" onclick="searchExample('create music with AI')">Music Generation</span>
+                    <span class="example-query" onclick="searchExample('design logos with AI')">Design Tools</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="loading" id="loading">
+            <div class="loading-spinner"></div>
+            <p>🧠 AI is searching for the best tools...</p>
+        </div>
+        
+        <div class="error" id="error"></div>
+        
+        <div class="results" id="results">
+            <div class="results-header">
+                <h2 id="resultsTitle">Recommended AI Tools</h2>
+                <p class="results-count" id="resultsCount"></p>
+            </div>
+            <div class="tool-list" id="toolList"></div>
+        </div>
+    </div>
+
+    <script>
+        const queryInput = document.getElementById('queryInput');
+        const searchBtn = document.getElementById('searchBtn');
+        const loading = document.getElementById('loading');
+        const results = document.getElementById('results');
+        const error = document.getElementById('error');
+        const toolList = document.getElementById('toolList');
+        const resultsTitle = document.getElementById('resultsTitle');
+        const resultsCount = document.getElementById('resultsCount');
+
+        // Search function
+        async function searchTools(query) {
+            if (!query.trim()) {
+                showError('Please enter a search query');
+                return;
+            }
+
+            showLoading();
+            hideError();
+            hideResults();
+
+            try {
+                const response = await fetch('/recommend', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ query: query.trim() })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showResults(data);
+                } else {
+                    showError(data.error || 'An error occurred');
+                }
+            } catch (err) {
+                showError('Failed to connect to the server. Please try again.');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // UI functions
+        function showLoading() {
+            loading.style.display = 'block';
+            searchBtn.disabled = true;
+        }
+
+        function hideLoading() {
+            loading.style.display = 'none';
+            searchBtn.disabled = false;
+        }
+
+        function showError(message) {
+            error.textContent = message;
+            error.style.display = 'block';
+        }
+
+        function hideError() {
+            error.style.display = 'none';
+        }
+
+        function showResults(data) {
+            if (!data.tools || data.tools.length === 0) {
+                showError('No AI tools found for your query. Please try a different search term.');
+                return;
+            }
+
+            resultsTitle.textContent = `🎯 AI Tools for: "${data.query}"`;
+            resultsCount.textContent = `Found ${data.total_found} relevant tools`;
+
+            toolList.innerHTML = '';
+            data.tools.forEach((tool, index) => {
+                const toolItem = document.createElement('div');
+                toolItem.className = 'tool-item';
+                toolItem.innerHTML = `
+                    <div class="tool-name">${index + 1}. ${escapeHtml(tool.name)}</div>
+                    <a href="${escapeHtml(tool.link)}" target="_blank" class="tool-link">
+                        🔗 ${escapeHtml(tool.link)}
+                    </a>
+                    <div class="tool-description">📝 ${escapeHtml(tool.description)}</div>
+                `;
+                toolList.appendChild(toolItem);
+            });
+
+            results.style.display = 'block';
+        }
+
+        function hideResults() {
+            results.style.display = 'none';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function searchExample(query) {
+            queryInput.value = query;
+            searchTools(query);
+        }
+
+        // Event listeners
+        searchBtn.addEventListener('click', () => {
+            searchTools(queryInput.value);
+        });
+
+        queryInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                searchTools(queryInput.value);
+            }
+        });
+
+        // Focus on input when page loads
+        window.addEventListener('load', () => {
+            queryInput.focus();
+        });
+    </script>
+</body>
+</html>
