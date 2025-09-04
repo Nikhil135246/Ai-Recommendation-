@@ -16,6 +16,9 @@ class AIToolRecommendationSystem:
         self.anthropic_api_key = os.getenv('ANTHROPIC_API_KEY')
         self.deepseek_api_key = os.getenv('DEEPSEEK_API_KEY')
         
+        # GitHub Models API endpoint
+        self.github_api_base = "https://models.inference.ai.azure.com"
+        
         # AI tools database with categories and descriptions
         self.ai_tools_database = {
             "pdf_converter": [
@@ -66,6 +69,136 @@ class AIToolRecommendationSystem:
                 {"name": "Boomy", "link": "https://boomy.com", "description": "Create songs with AI"}
             ]
         }
+
+    def query_github_models(self, query: str, model: str = "gpt-4o-mini") -> Optional[str]:
+        """Query GitHub Models API with optimal prompt for AI tool recommendations"""
+        if not self.github_token:
+            return None
+            
+        headers = {
+            "Authorization": f"Bearer {self.github_token}",
+            "Content-Type": "application/json"
+        }
+        
+        # Robust and optimal prompt for consistent results
+        prompt = f"""You are an AI tool discovery expert. Find exactly 5 AI tools/services for this query: "{query}"
+
+IMPORTANT REQUIREMENTS:
+1. Return ONLY a valid JSON array - no other text
+2. Each tool must have real, working links (no placeholders)
+3. Verify tools exist and are currently available
+4. Focus on popular, established AI tools
+5. Include diverse options from different categories
+
+FORMAT (strict JSON only):
+[
+    {{"name": "Tool Name", "link": "https://actual-working-url.com", "description": "Brief 1-2 sentence description of what it does"}},
+    {{"name": "Tool Name 2", "link": "https://another-real-url.com", "description": "Brief 1-2 sentence description"}}
+]
+
+Query: {query}
+
+Remember: Return only the JSON array, no explanations or additional text."""
+        
+        data = {
+            "model": model,
+            "messages": [
+                {
+                    "role": "system", 
+                    "content": "You are a precise AI tool discovery assistant. Always respond with valid JSON arrays only. Never include explanations or markdown formatting."
+                },
+                {"role": "user", "content": prompt}
+            ],
+            "max_tokens": 1500,
+            "temperature": 0.3
+        }
+        
+        try:
+            response = requests.post(
+                f"{self.github_api_base}/chat/completions", 
+                headers=headers, 
+                json=data, 
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                return result["choices"][0]["message"]["content"].strip()
+            else:
+                print(f"GitHub Models API error: {response.status_code} - {response.text}")
+                return None
+                
+        except Exception as e:
+            print(f"GitHub Models API error: {e}")
+            return None
+
+    def find_with_ai(self, query: str) -> Dict:
+        """Find AI tools using GitHub Models API"""
+        if not query.strip():
+            return {'error': 'Please provide a query', 'tools': [], 'total_found': 0}
+        
+        print(f"🤖 AI Search initiated for: '{query}'")
+        
+        if not self.github_token:
+            print("❌ No GitHub token found - falling back to database search")
+            return self.recommend_tools(query)
+        
+        # Try different models for best results
+        models_to_try = ["gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo"]
+        
+        for model in models_to_try:
+            try:
+                print(f"🤖 Querying {model} for: {query}")
+                response = self.query_github_models(query, model)
+                
+                if response:
+                    # Clean the response - remove any markdown formatting
+                    cleaned_response = response.strip()
+                    if cleaned_response.startswith('```json'):
+                        cleaned_response = cleaned_response[7:]
+                    if cleaned_response.endswith('```'):
+                        cleaned_response = cleaned_response[:-3]
+                    cleaned_response = cleaned_response.strip()
+                    
+                    print(f"✅ Raw AI response from {model}: {cleaned_response[:200]}...")
+                    
+                    # Parse JSON response
+                    tools = json.loads(cleaned_response)
+                    
+                    if isinstance(tools, list) and len(tools) > 0:
+                        # Validate and clean tools
+                        validated_tools = []
+                        for tool in tools[:5]:  # Limit to 5 tools
+                            if (isinstance(tool, dict) and 
+                                'name' in tool and 
+                                'link' in tool and 
+                                'description' in tool and
+                                tool['link'].startswith(('http://', 'https://'))):
+                                validated_tools.append({
+                                    'name': tool['name'][:100],  # Limit length
+                                    'link': tool['link'],
+                                    'description': tool['description'][:200]  # Limit length
+                                })
+                        
+                        if validated_tools:
+                            print(f"✅ Successfully found {len(validated_tools)} AI tools using {model}")
+                            return {
+                                'query': query,
+                                'tools': validated_tools,
+                                'total_found': len(validated_tools),
+                                'source': f'AI-powered by {model}'
+                            }
+                
+            except json.JSONDecodeError as e:
+                print(f"❌ JSON parsing error with {model}: {e}")
+                continue
+            except Exception as e:
+                print(f"❌ Error with {model}: {e}")
+                continue
+        
+        # Fallback to database search if AI fails
+        print("🔄 AI search failed, falling back to database search")
+        return self.recommend_tools(query)
 
     def get_best_llm_response(self, query: str) -> str:
         """Try different LLM APIs and return the best response"""

@@ -24,6 +24,21 @@ def recommend():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/find-with-ai', methods=['POST'])
+def find_with_ai():
+    try:
+        data = request.get_json()
+        query = data.get('query', '').strip()
+        
+        if not query:
+            return jsonify({'error': 'Please provide a query'}), 400
+        
+        result = system.find_with_ai(query)
+        return jsonify(result)
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     print("🚀 Starting AI Tool Recommendation Web Server...")
     print("📍 Visit: http://localhost:5000")

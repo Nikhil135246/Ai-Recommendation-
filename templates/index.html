@@ -50,7 +50,7 @@
         
         .search-box {
             display: flex;
-            gap: 15px;
+            gap: 10px;
             margin-bottom: 30px;
         }
         
@@ -68,9 +68,8 @@
             border-color: #4facfe;
         }
         
-        .search-btn {
-            padding: 15px 30px;
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        .search-btn, .ai-search-btn {
+            padding: 15px 25px;
             color: white;
             border: none;
             border-radius: 10px;
@@ -78,13 +77,22 @@
             font-size: 16px;
             font-weight: 600;
             transition: transform 0.2s;
+            white-space: nowrap;
         }
         
-        .search-btn:hover {
+        .search-btn {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        
+        .ai-search-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .search-btn:hover, .ai-search-btn:hover {
             transform: translateY(-2px);
         }
         
-        .search-btn:disabled {
+        .search-btn:disabled, .ai-search-btn:disabled {
             opacity: 0.6;
             cursor: not-allowed;
             transform: none;
@@ -258,6 +266,7 @@
                 <input type="text" class="search-input" id="queryInput" 
                        placeholder="What do you want to do? (e.g., convert CSV to PDF)" 
                        maxlength="200">
+                <button class="ai-search-btn" id="aiSearchBtn">🤖 Find with AI</button>
                 <button class="search-btn" id="searchBtn">🔍 Find Tools</button>
             </div>
             
@@ -293,6 +302,7 @@
     <script>
         const queryInput = document.getElementById('queryInput');
         const searchBtn = document.getElementById('searchBtn');
+        const aiSearchBtn = document.getElementById('aiSearchBtn');
         const loading = document.getElementById('loading');
         const results = document.getElementById('results');
         const error = document.getElementById('error');
@@ -334,15 +344,52 @@
             }
         }
 
+        // AI-powered search function
+        async function searchWithAI(query) {
+            if (!query.trim()) {
+                showError('Please enter a search query.');
+                return;
+            }
+
+            showLoading();
+            hideError();
+            hideResults();
+
+            try {
+                const response = await fetch('/find-with-ai', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ query: query.trim() })
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    showError(data.error);
+                } else {
+                    showResults(data);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showError('Failed to connect to the AI service. Please try again.');
+            } finally {
+                hideLoading();
+            }
+        }
+
         // UI functions
         function showLoading() {
             loading.style.display = 'block';
             searchBtn.disabled = true;
+            aiSearchBtn.disabled = true;
         }
 
         function hideLoading() {
             loading.style.display = 'none';
             searchBtn.disabled = false;
+            aiSearchBtn.disabled = false;
         }
 
         function showError(message) {
@@ -361,7 +408,10 @@
             }
 
             resultsTitle.textContent = `🎯 AI Tools for: "${data.query}"`;
-            resultsCount.textContent = `Found ${data.total_found} relevant tools`;
+            
+            // Show source info if available
+            const sourceInfo = data.source ? ` (${data.source})` : '';
+            resultsCount.textContent = `Found ${data.total_found} relevant tools${sourceInfo}`;
 
             toolList.innerHTML = '';
             data.tools.forEach((tool, index) => {
@@ -400,9 +450,14 @@
             searchTools(queryInput.value);
         });
 
+        aiSearchBtn.addEventListener('click', () => {
+            searchWithAI(queryInput.value);
+        });
+
         queryInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
-                searchTools(queryInput.value);
+                // Default to AI search when Enter is pressed
+                searchWithAI(queryInput.value);
             }
         });
 
